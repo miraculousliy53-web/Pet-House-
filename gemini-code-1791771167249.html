@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Animal House Obby: Preposition Quest</title>
+    <!-- Three.js for 3D Graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Formal Google Font: Lexend -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2B6CB0;
+            --primary-dark: #1A365D;
+            --accent: #DD6B20;
+            --bg-light: #F7FAFC;
+            --text-dark: #1A202C;
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --red: #E53E3E;
+            --green: #38A169;
+            --blue: #3182CE;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Lexend', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0F172A;
+            color: var(--text-dark);
+            position: fixed;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #canvas-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- UI OVERLAY LAYER --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* --- HUD TOP BAR --- */
+        #hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .hud-badge {
+            background: #EDF2F7;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #CBD5E0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dark);
+        }
+
+        .hud-badge.score { border-color: #ECC94B; background: #FEFCBF; color: #744210; }
+        .hud-badge.room { border-color: #90CDF4; background: #EBF8FF; color: #2B6CB0; }
+
+        .btn-icon {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E0;
+            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            transition: all 0.15s ease;
+        }
+
+        .btn-icon:active { transform: scale(0.95); background: #EDF2F7; }
+
+        /* --- INTERACTION PROMPT --- */
+        #tap-prompt {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 32, 44, 0.88);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: bounce 1.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -60%); }
+        }
+
+        /* --- PROGRESS DRAWER --- */
+        #progress-drawer {
+            position: absolute;
+            top: 60px;
+            left: 12px;
+            right: 12px;
+            background: rgba(255,255,255,0.98);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 30;
+            border: 1px solid #E2E8F0;
+        }
+
+        #progress-drawer.open { display: block; }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .prog-node {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+        }
+
+        .prog-node.red { background: var(--red); }
+        .prog-node.green { background: var(--green); }
+        .prog-node.active { ring: 3px solid #3182CE; border: 2px solid white; }
+
+        /* --- QUESTION MODAL DIALOG --- */
+        #quest-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 40;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        #quest-panel {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 520px;
+            border: 1px solid #E2E8F0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .quest-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #4A5568;
+            font-weight: 600;
+        }
+
+        #answer-zone {
+            min-height: 52px;
+            background: #F7FAFC;
+            border: 2px dashed #CBD5E0;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        #word-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            min-height: 52px;
+        }
+
+        .tile {
+            background: #3182CE;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            box-shadow: 0 2px 0 #2B6CB0;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .tile:active { transform: translateY(2px); box-shadow: none; }
+        .tile.highlight { background: #DD6B20; box-shadow: 0 2px 0 #C05621; }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn-hint { background: #ED8936; }
+        .btn-clear { background: #718096; }
+        .btn-submit { background: #38A169; }
+        .btn-close-quest { background: #A0AEC0; flex: 0.5; }
+
+        #hint-bubble {
+            background: #FEFCBF;
+            border: 1px solid #F6E05E;
+            color: #744210;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+        }
+
+        /* --- MOBILE JOYSTICK CONTROLS --- */
+        #controls-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+            padding: 0 8px 8px 8px;
+        }
+
+        #dpad {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .dpad-btn {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            background: rgba(255,255,255,0.85);
+            border: 1px solid #CBD5E0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2D3748;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .dpad-btn:active, .dpad-btn.active { background: #3182CE; color: white; }
+        #dpad-up { top: 0; left: 41px; }
+        #dpad-down { bottom: 0; left: 41px; }
+        #dpad-left { top: 41px; left: 0; }
+        #dpad-right { top: 41px; right: 0; }
+
+        #btn-jump {
+            width: 64px;
+            height: 64px;
+            background: rgba(56, 161, 105, 0.9);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-family: inherit;
+        }
+
+        /* --- MODAL DIALOGS --- */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.92);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            color: var(--text-dark);
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-title { font-size: 20px; color: var(--primary-dark); font-weight: 800; text-align: center; }
+        .modal-subtitle { font-size: 13px; color: #4A5568; font-weight: 500; text-align: center; margin-top: -10px; }
+
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        .input-group label { font-size: 13px; font-weight: 600; color: #4A5568; }
+        .input-group input {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #CBD5E0;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .btn-large {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        #feedback-toast {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            z-index: 60;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        #feedback-toast.success { background: #38A169; }
+        #feedback-toast.error { background: #E53E3E; }
+
+        @media (min-width: 768px) { #controls-bottom { display: none; } }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 3D Canvas -->
+        <canvas id="canvas-3d"></canvas>
+
+        <!-- UI Interactive Layer -->
+        <div id="ui-layer">
+            <!-- HUD -->
+            <div id="hud-top" class="interactive">
+                <div class="hud-badge room" id="hud-room">Room 1/18</div>
+                <div class="hud-badge score" id="hud-score">⭐ 0</div>
+                <button class="btn-icon" id="btn-prog-toggle" title="Progress Grid">📋</button>
+                <button class="btn-icon" id="btn-audio" title="Mute/Unmute">🔊</button>
+            </div>
+
+            <!-- Exploration Prompt -->
+            <div id="tap-prompt">
+                <span>🔍 Walk up or tap the pet to inspect!</span>
+            </div>
+
+            <!-- Progress Grid Drawer -->
+            <div id="progress-drawer" class="interactive">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:14px; color:#2D3748;">Room Matrix Progress (<span id="prog-count">0/18</span>)</strong>
+                    <button class="btn-icon" style="width:28px;height:28px;font-size:12px;" id="btn-prog-close">✖</button>
+                </div>
+                <div class="progress-grid" id="progress-grid"></div>
+            </div>
+
+            <!-- Feedback Toast -->
+            <div id="feedback-toast"></div>
+
+            <!-- Touch Controls -->
+            <div id="controls-bottom">
+                <div id="dpad" class="interactive">
+                    <div class="dpad-btn" id="dpad-up">▲</div>
+                    <div class="dpad-btn" id="dpad-down">▼</div>
+                    <div class="dpad-btn" id="dpad-left">◄</div>
+                    <div class="dpad-btn" id="dpad-right">►</div>
+                </div>
+                <button class="btn-jump interactive" id="btn-jump">JUMP</button>
+            </div>
+        </div>
+
+        <!-- Question Challenge Modal Dialog -->
+        <div id="quest-modal-overlay">
+            <div id="quest-panel" class="interactive">
+                <div class="quest-header">
+                    <span>Rearrange into a correct sentence:</span>
+                    <button class="btn-action btn-close-quest" id="btn-close-quest">Close ✖</button>
+                </div>
+
+                <div id="answer-zone"></div>
+                <div id="word-pool"></div>
+                <div id="hint-bubble"></div>
+
+                <div class="action-row">
+                    <button class="btn-action btn-hint" id="btn-hint">💡 Hint</button>
+                    <button class="btn-action btn-clear" id="btn-clear">🔄 Clear</button>
+                    <button class="btn-action btn-submit" id="btn-submit">✅ Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Modal -->
+    <div id="modal-start" class="modal">
+        <div class="modal-card">
+            <div class="modal-title">ANIMAL HOUSE OBBY</div>
+            <div class="modal-subtitle">PREPOSITION QUEST</div>
+            <p style="font-size:13px; color:#4A5568;">Explore rooms, inspect pets, and form proper preposition sentences!</p>
+
+            <div class="input-group">
+                <label for="player-name-input">Pupil Name:</label>
+                <input type="text" id="player-name-input" placeholder="e.g. Aiman" maxlength="15">
+            </div>
+
+            <div style="background:#EDF2F7; padding:10px; border-radius:8px; font-size:12px; color:#2D3748;">
+                📌 <strong>Grammar Rules:</strong><br>
+                • Sentences must begin with a capital letter "The".<br>
+                • Sentences must end with a full stop ".".<br>
+                • Target Structure: <em>The + animal + is + preposition + the + place.</em>
+            </div>
+
+            <button class="btn-large" id="btn-start-game">Start Adventure 🚀</button>
+        </div>
+    </div>
+
+    <!-- Finish Modal -->
+    <div id="modal-finish" class="modal" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-title">🎉 Congratulations!</div>
+            <div class="modal-subtitle" id="finish-player-name">Aiman</div>
+
+            <div style="text-align:center; font-size:28px;" id="finish-stars">⭐⭐⭐</div>
+
+            <div style="background:#F7FAFC; padding:12px; border-radius:8px; font-size:13px; border:1px solid #E2E8F0;">
+                <div>Final Score: <strong id="finish-score" style="color:#2B6CB0;">180</strong> / 180</div>
+                <div>Completed Rooms: <strong>18/18</strong></div>
+                <div>Hints Used: <strong id="finish-hints">0</strong></div>
+            </div>
+
+            <div id="review-list" style="font-size:12px; max-height:120px; overflow-y:auto; background:#EDF2F7; padding:8px; border-radius:6px;"></div>
+
+            <button class="btn-large" id="btn-restart">Play Again 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- QUESTION DATABASE --- */
+        const QUESTIONS = [
+            { id: 1, scrambled: ["box.", "the", "on", "cat", "The", "is"], answer: "The cat is on the box.", animal: "cat", place: "box", prep: "ON" },
+            { id: 2, scrambled: ["rat", "The", "in", "the", "box.", "is"], answer: "The rat is in the box.", animal: "rat", place: "box", prep: "IN" },
+            { id: 3, scrambled: ["under", "chair.", "the", "dog", "The", "is"], answer: "The dog is under the chair.", animal: "dog", place: "chair", prep: "UNDER" },
+            { id: 4, scrambled: ["tree.", "the", "on", "frog", "The", "is"], answer: "The frog is on the tree.", animal: "frog", place: "tree", prep: "ON" },
+            { id: 5, scrambled: ["hat.", "the", "in", "spider", "The", "is"], answer: "The spider is in the hat.", animal: "spider", place: "hat", prep: "IN" },
+            { id: 6, scrambled: ["pencil case.", "the", "under", "lizard", "The", "is"], answer: "The lizard is under the pencil case.", animal: "lizard", place: "pencil case", prep: "UNDER" },
+            { id: 7, scrambled: ["book.", "the", "on", "rat", "The", "is"], answer: "The rat is on the book.", animal: "rat", place: "book", prep: "ON" },
+            { id: 8, scrambled: ["chair.", "the", "in", "cat", "The", "is"], answer: "The cat is in the chair.", animal: "cat", place: "chair", prep: "IN" },
+            { id: 9, scrambled: ["box.", "the", "under", "frog", "The", "is"], answer: "The frog is under the box.", animal: "frog", place: "box", prep: "UNDER" },
+            { id: 10, scrambled: ["hat.", "the", "on", "dog", "The", "is"], answer: "The dog is on the hat.", animal: "dog", place: "hat", prep: "ON" },
+            { id: 11, scrambled: ["tree.", "the", "under", "spider", "The", "is"], answer: "The spider is under the tree.", animal: "spider", place: "tree", prep: "UNDER" },
+            { id: 12, scrambled: ["pencil case.", "the", "in", "lizard", "The", "is"], answer: "The lizard is in the pencil case.", animal: "lizard", place: "pencil case", prep: "IN" },
+            { id: 13, scrambled: ["box.", "the", "on", "spider", "The", "is"], answer: "The spider is on the box.", animal: "spider", place: "box", prep: "ON" },
+            { id: 14, scrambled: ["book.", "the", "under", "cat", "The", "is"], answer: "The cat is under the book.", animal: "cat", place: "book", prep: "UNDER" },
+            { id: 15, scrambled: ["chair.", "the", "on", "frog", "The", "is"], answer: "The frog is on the chair.", animal: "frog", place: "chair", prep: "ON" },
+            { id: 16, scrambled: ["hat.", "the", "under", "rat", "The", "is"], answer: "The rat is under the hat.", animal: "rat", place: "hat", prep: "UNDER" },
+            { id: 17, scrambled: ["tree.", "the", "in", "dog", "The", "is"], answer: "The dog is in the tree.", animal: "dog", place: "tree", prep: "IN" },
+            { id: 18, scrambled: ["book.", "the", "in", "lizard", "The", "is"], answer: "The lizard is in the book.", animal: "lizard", place: "book", prep: "IN" }
+        ];
+
+        /* --- STATE --- */
+        let playerName = "";
+        let currentRoomIndex = 0;
+        let score = 0;
+        let hintsUsed = 0;
+        let audioMuted = false;
+        let roomStates = Array(18).fill().map(() => ({ completed: false, attempts: 0 }));
+        let selectedTiles = [];
+
+        /* --- AUDIO SYNTH --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, duration) {
+            if (audioMuted) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        /* --- THREE.JS 3D ENGINE --- */
+        let scene, camera, renderer, playerMesh, interactiveTargetMesh;
+        let keys = { up: false, down: false, left: false, right: false, jump: false };
+        let playerVelY = 0;
+        let isGrounded = true;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        function init3D() {
+            const canvas = document.getElementById('canvas-3d');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xCBD5E0);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            buildPlayerMesh();
+            buildRoom3D();
+
+            // Raycasting click on objects
+            window.addEventListener('pointerdown', onPointerDown);
+
+            animate();
+        }
+
+        function buildPlayerMesh() {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.5), new THREE.MeshLambertMaterial({ color: 0x3182CE }));
+            body.position.y = 0.9;
+            group.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: 0xF6AD55 }));
+            head.position.y = 1.7;
+            group.add(head);
+
+            playerMesh = group;
+            scene.add(playerMesh);
+        }
+
+        /* DETAILED SHAPED PET CREATOR */
+        function createPetMesh(animalType) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshLambertMaterial({ color: 0xDD6B20 });
+
+            if (animalType === 'cat') {
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.8), mat);
+                body.rotation.z = Math.PI / 2;
+                group.add(body);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.28), mat);
+                head.position.set(0.4, 0.2, 0);
+                group.add(head);
+                // Ears
+                const ear1 = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 4), mat);
+                ear1.position.set(0.45, 0.5, 0.12);
+                const ear2 = ear1.clone();
+                ear2.position.set(0.45, 0.5, -0.12);
+                group.add(ear1, ear2);
+            } else if (animalType === 'dog') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.4), mat);
+                group.add(body);
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mat);
+                head.position.set(0.5, 0.3, 0);
+                const snout = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.2), new THREE.MeshLambertMaterial({ color: 0x7B341E }));
+                snout.position.set(0.7, 0.25, 0);
+                group.add(head, snout);
+            } else if (animalType === 'frog') {
+                const matGreen = new THREE.MeshLambertMaterial({ color: 0x38A169 });
+                const body = new THREE.Mesh(new THREE.SphereGeometry(0.4), matGreen);
+                body.scale.set(1, 0.7, 1);
+                group.add(body);
+                const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.12), new THREE.MeshLambertMaterial({ color: 0xFFFFFF }));
+                eye1.position.set(0.2, 0.3, 0.2);
+                const eye2 = eye1.clone();
+                eye2.position.set(0.2, 0.3, -0.2);
+                group.add(eye1, eye2);
+            } else if (animalType === 'rat') {
+                const matGrey = new THREE.MeshLambertMaterial({ color: 0x718096 });
+                const body = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 8), matGrey);
+                body.rotation.z = -Math.PI / 2;
+                group.add(body);
+                const ear1 = new THREE.Mesh(new THREE.SphereGeometry(0.1), matGrey);
+                ear1.position.set(-0.1, 0.25, 0.15);
+                const ear2 = ear1.clone();
+                ear2.position.set(-0.1, 0.25, -0.15);
+                group.add(ear1, ear2);
+            } else if (animalType === 'spider') {
+                const matDark = new THREE.MeshLambertMaterial({ color: 0x1A202C });
+                const body = new THREE.Mesh(new THREE.SphereGeometry(0.35), matDark);
+                group.add(body);
+                // 8 legs
+                for(let i=0; i<8; i++) {
+                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6), matDark);
+                    const angle = (i / 8) * Math.PI * 2;
+                    leg.position.set(Math.cos(angle)*0.4, -0.1, Math.sin(angle)*0.4);
+                    leg.rotation.z = Math.PI / 3;
+                    group.add(leg);
+                }
+            } else if (animalType === 'lizard') {
+                const matGreen = new THREE.MeshLambertMaterial({ color: 0x2F855A });
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.3), matGreen);
+                group.add(body);
+                const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.8, 4), matGreen);
+                tail.rotation.z = Math.PI / 2;
+                tail.position.set(-0.8, 0, 0);
+                group.add(tail);
+            }
+
+            return group;
+        }
+
+        function buildRoom3D() {
+            // Remove old room props except player & light
+            for(let i = scene.children.length - 1; i >= 0; i--) {
+                const obj = scene.children[i];
+                if (obj !== playerMesh && !obj.isLight) scene.remove(obj);
+            }
+
+            const q = QUESTIONS[currentRoomIndex];
+
+            // Room Floor
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(12, 0.2, 12), new THREE.MeshLambertMaterial({ color: 0xEDF2F7 }));
+            floor.position.y = -0.1;
+            scene.add(floor);
+
+            // Walls
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xE2E8F0 });
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 0.2), wallMat);
+            backWall.position.set(0, 2.5, -6);
+            scene.add(backWall);
+
+            // Target Place Mesh
+            let placeMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 2), new THREE.MeshLambertMaterial({ color: 0x8D6E63 }));
+            if (q.place === 'tree') placeMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 2.5), new THREE.MeshLambertMaterial({ color: 0x744210 }));
+            if (q.place === 'chair') placeMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.5), new THREE.MeshLambertMaterial({ color: 0xB7791F }));
+            if (q.place === 'hat') placeMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.6), new THREE.MeshLambertMaterial({ color: 0x2D3748 }));
+
+            placeMesh.position.set(0, 0.6, -2);
+            scene.add(placeMesh);
+
+            // Shaped Pet
+            const pet = createPetMesh(q.animal);
+            if (q.prep === 'ON') pet.position.set(0, 1.6, -2);
+            if (q.prep === 'IN') pet.position.set(0, 0.6, -2);
+            if (q.prep === 'UNDER') { pet.position.set(0, 0.2, -2); placeMesh.position.y = 1.2; }
+
+            pet.name = "interactive_pet";
+            interactiveTargetMesh = pet;
+            scene.add(pet);
+
+            playerMesh.position.set(0, 0, 3);
+        }
+
+        function onPointerDown(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            if (intersects.length > 0) {
+                openQuestionModal();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const speed = 0.12;
+            if (keys.up && playerMesh.position.z > -4.5) playerMesh.position.z -= speed;
+            if (keys.down && playerMesh.position.z < 4.5) playerMesh.position.z += speed;
+            if (keys.left && playerMesh.position.x > -4.5) playerMesh.position.x -= speed;
+            if (keys.right && playerMesh.position.x < 4.5) playerMesh.position.x += speed;
+
+            if (keys.jump && isGrounded) {
+                playerVelY = 0.18;
+                isGrounded = false;
+            }
+
+            if (!isGrounded) {
+                playerMesh.position.y += playerVelY;
+                playerVelY -= 0.01;
+                if (playerMesh.position.y <= 0) {
+                    playerMesh.position.y = 0;
+                    isGrounded = true;
+                }
+            }
+
+            // Proximity Trigger
+            const dist = playerMesh.position.distanceTo(interactiveTargetMesh ? interactiveTargetMesh.position : new THREE.Vector3());
+            if (dist < 2.2) {
+                document.getElementById('tap-prompt').style.borderColor = '#38A169';
+            } else {
+                document.getElementById('tap-prompt').style.borderColor = 'rgba(255,255,255,0.2)';
+            }
+
+            camera.position.set(playerMesh.position.x, playerMesh.position.y + 4, playerMesh.position.z + 6);
+            camera.lookAt(playerMesh.position.x, playerMesh.position.y + 1, playerMesh.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        /* --- UI & MODAL HANDLERS --- */
+        function openQuestionModal() {
+            document.getElementById('quest-modal-overlay').style.display = 'flex';
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('quest-modal-overlay').style.display = 'none';
+        }
+
+        function loadRoom(index) {
+            currentRoomIndex = index;
+            selectedTiles = [];
+            document.getElementById('hint-bubble').style.display = 'none';
+            document.getElementById('hud-room').innerText = `Room ${index + 1}/18`;
+
+            const q = QUESTIONS[index];
+            const shuffled = [...q.scrambled].sort(() => Math.random() - 0.5);
+
+            const poolEl = document.getElementById('word-pool');
+            poolEl.innerHTML = '';
+            shuffled.forEach((word) => {
+                const btn = document.createElement('div');
+                btn.className = 'tile';
+                btn.innerText = word;
+                btn.onclick = () => {
+                    playTone(400, 0.08);
+                    selectedTiles.push({ word, el: btn });
+                    btn.style.visibility = 'hidden';
+                    renderAnswerZone();
+                };
+                poolEl.appendChild(btn);
+            });
+
+            renderAnswerZone();
+            renderProgressGrid();
+            buildRoom3D();
+        }
+
+        function renderAnswerZone() {
+            const zone = document.getElementById('answer-zone');
+            zone.innerHTML = '';
+            selectedTiles.forEach((item, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'tile';
+                btn.innerText = item.word;
+                btn.onclick = () => {
+                    playTone(300, 0.08);
+                    item.el.style.visibility = 'visible';
+                    selectedTiles.splice(idx, 1);
+                    renderAnswerZone();
+                };
+                zone.appendChild(btn);
+            });
+        }
+
+        function submitAnswer() {
+            const sentence = selectedTiles.map(t => t.word).join(" ");
+            const q = QUESTIONS[currentRoomIndex];
+            const state = roomStates[currentRoomIndex];
+
+            // STRICT GRAMMAR & PUNCTUATION CHECK
+            if (sentence === q.answer) {
+                playTone(600, 0.2);
+                showToast("Amazing! Accurate answer!", "success");
+
+                if (!state.completed) {
+                    state.completed = true;
+                    score += (state.attempts === 0 ? 10 : 5);
+                    document.getElementById('hud-score').innerText = `⭐ ${score}`;
+                }
+
+                renderProgressGrid();
+                setTimeout(() => {
+                    closeQuestionModal();
+                    if (currentRoomIndex < 17) loadRoom(currentRoomIndex + 1);
+                    else showFinishScreen();
+                }, 1200);
+            } else {
+                state.attempts++;
+                playTone(180, 0.25);
+                showToast("Check capitalization & punctuation!", "error");
+            }
+        }
+
+        function showToast(text, type) {
+            const toast = document.getElementById('feedback-toast');
+            toast.innerText = text;
+            toast.className = type;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 1500);
+        }
+
+        function renderProgressGrid() {
+            const grid = document.getElementById('progress-grid');
+            grid.innerHTML = '';
+            let comp = 0;
+            QUESTIONS.forEach((q, idx) => {
+                if (roomStates[idx].completed) comp++;
+                const node = document.createElement('div');
+                node.className = `prog-node ${roomStates[idx].completed ? 'green' : 'red'} ${idx === currentRoomIndex ? 'active' : ''}`;
+                node.innerText = `${idx + 1}`;
+                node.onclick = () => { loadRoom(idx); document.getElementById('progress-drawer').classList.remove('open'); };
+                grid.appendChild(node);
+            });
+            document.getElementById('prog-count').innerText = `${comp}/18`;
+        }
+
+        function showFinishScreen() {
+            document.getElementById('modal-finish').style.display = 'flex';
+            document.getElementById('finish-player-name').innerText = playerName;
+            document.getElementById('finish-score').innerText = score;
+            document.getElementById('finish-hints').innerText = hintsUsed;
+        }
+
+        function setupControls() {
+            const bindDPad = (id, k) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[k] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[k] = false; });
+                el.addEventListener('mousedown', () => keys[k] = true);
+                el.addEventListener('mouseup', () => keys[k] = false);
+            };
+            bindDPad('dpad-up', 'up'); bindDPad('dpad-down', 'down');
+            bindDPad('dpad-left', 'left'); bindDPad('dpad-right', 'right');
+
+            document.getElementById('btn-jump').onclick = () => { keys.jump = true; setTimeout(() => keys.jump = false, 100); };
+            document.getElementById('btn-close-quest').onclick = closeQuestionModal;
+            document.getElementById('btn-clear').onclick = () => { selectedTiles.forEach(t => t.el.style.visibility = 'visible'); selectedTiles = []; renderAnswerZone(); };
+            document.getElementById('btn-submit').onclick = submitAnswer;
+            document.getElementById('btn-hint').onclick = () => {
+                hintsUsed++;
+                const q = QUESTIONS[currentRoomIndex];
+                document.getElementById('hint-bubble').innerText = `💡 ${q.prep}: Animal position indicator. Ensure 'The' is capitalized and '.' is at the end!`;
+                document.getElementById('hint-bubble').style.display = 'block';
+            };
+
+            document.getElementById('btn-prog-toggle').onclick = () => document.getElementById('progress-drawer').classList.toggle('open');
+            document.getElementById('btn-prog-close').onclick = () => document.getElementById('progress-drawer').classList.remove('open');
+            document.getElementById('btn-audio').onclick = () => { audioMuted = !audioMuted; document.getElementById('btn-audio').innerText = audioMuted ? '🔇' : '🔊'; };
+
+            document.getElementById('btn-start-game').onclick = () => {
+                const name = document.getElementById('player-name-input').value.trim();
+                if (!name) return alert("Please enter your name!");
+                playerName = name;
+                document.getElementById('modal-start').style.display = 'none';
+                loadRoom(0);
+            };
+
+            document.getElementById('btn-restart').onclick = () => {
+                score = 0; currentRoomIndex = 0; hintsUsed = 0;
+                roomStates = Array(18).fill().map(() => ({ completed: false, attempts: 0 }));
+                document.getElementById('modal-finish').style.display = 'none';
+                loadRoom(0);
+            };
+        }
+
+        window.onload = () => {
+            init3D();
+            setupControls();
+        };
+    </script>
+</body>
+</html>
