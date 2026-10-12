@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pet House: Preposition Quest</title>
+    <!-- Three.js for 3D Roblox style graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #388E3C;
+            --accent: #FF9800;
+            --accent-dark: #F57C00;
+            --bg-light: #E8F5E9;
+            --text-dark: #2C3E50;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --red-light: #FFEBEE;
+            --red: #F44336;
+            --green-light: #E8F5E9;
+            --green: #4CAF50;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Fredoka One', cursive, sans-serif;
+            background-color: #1a1a2e;
+            color: var(--text-dark);
+            position: fixed;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #canvas-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- UI OVERLAY LAYER --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* --- HUD TOP BAR --- */
+        #hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 12px;
+            border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .hud-badge {
+            background: #f0f0f0;
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 2px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hud-badge.score { border-color: #FFD700; background: #FFFDE7; }
+        .hud-badge.room { border-color: #2196F3; background: #E3F2FD; }
+
+        .btn-icon {
+            background: #fff;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .btn-icon:active { transform: scale(0.92); }
+
+        /* --- HUD PROGRESS PANEL (COLLAPSIBLE) --- */
+        #progress-drawer {
+            position: absolute;
+            top: 55px;
+            left: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 20;
+            border: 3px solid var(--primary);
+        }
+
+        #progress-drawer.open { display: block; }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .prog-node {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+
+        .prog-node.red { background: var(--red); }
+        .prog-node.green { background: var(--green); }
+        .prog-node.active { border: 3px solid #FFD700; transform: scale(1.05); }
+
+        /* --- QUESTION & ANSWER PANEL --- */
+        #quest-panel {
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: 18px;
+            padding: 10px 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            margin: 0 auto;
+            width: 100%;
+            max-width: 600px;
+            border: 3px solid #2196F3;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quest-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        #answer-zone {
+            min-height: 44px;
+            background: #f8f9fa;
+            border: 2px dashed #90CAF9;
+            border-radius: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #word-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            min-height: 44px;
+        }
+
+        .tile {
+            background: #2196F3;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 15px;
+            box-shadow: 0 3px 0 #1565C0;
+            cursor: pointer;
+            transition: transform 0.1s;
+            display: inline-block;
+        }
+
+        .tile:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #1565C0;
+        }
+
+        .tile.highlight {
+            background: #FF9800;
+            box-shadow: 0 3px 0 #E65100;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: none;
+            font-weight: bold;
+            font-size: 13px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .btn-action:active { transform: translateY(2px); box-shadow: none; }
+        .btn-hint { background: #FF9800; box-shadow: 0 3px 0 #E65100; }
+        .btn-clear { background: #78909C; box-shadow: 0 3px 0 #455A64; }
+        .btn-submit { background: #4CAF50; box-shadow: 0 3px 0 #2E7D32; }
+
+        /* --- SPEECH / HINT BUBBLE --- */
+        #hint-bubble {
+            background: #FFF9C4;
+            border: 2px solid #FBC02D;
+            color: #574300;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            text-align: center;
+            display: none;
+            font-weight: bold;
+        }
+
+        /* --- MOBILE CONTROLS OVERLAY --- */
+        #controls-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+            padding: 0 10px 10px 10px;
+        }
+
+        #dpad {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .dpad-btn {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.7);
+            border: 2px solid #666;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+        }
+
+        .dpad-btn:active, .dpad-btn.active {
+            background: #2196F3;
+            color: white;
+        }
+
+        #dpad-up { top: 0; left: 40px; }
+        #dpad-down { bottom: 0; left: 40px; }
+        #dpad-left { top: 40px; left: 0; }
+        #dpad-right { top: 40px; right: 0; }
+
+        #btn-jump {
+            width: 65px;
+            height: 65px;
+            background: rgba(76, 175, 80, 0.85);
+            border: 3px solid white;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #btn-jump:active { transform: scale(0.92); background: #388E3C; }
+
+        /* --- MODAL OVERLAYS (START / FINISH) --- */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .modal-card {
+            background: white;
+            color: var(--text-dark);
+            border-radius: 24px;
+            padding: 20px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 4px solid var(--accent);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            color: #D32F2F;
+            font-weight: 900;
+        }
+
+        .modal-subtitle {
+            font-size: 14px;
+            color: #1976D2;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .input-group input {
+            padding: 10px;
+            border-radius: 12px;
+            border: 2px solid #ccc;
+            font-size: 16px;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .btn-large {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            border-radius: 16px;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 0 var(--primary-dark);
+            cursor: pointer;
+        }
+
+        .btn-large:active { transform: translateY(2px); box-shadow: none; }
+
+        /* Feedback Toast */
+        #feedback-toast {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        #feedback-toast.success { background: #4CAF50; }
+        #feedback-toast.error { background: #F44336; }
+
+        .star-rating {
+            font-size: 32px;
+            color: #FFD700;
+        }
+
+        .review-list {
+            text-align: left;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        /* Hide controls on desktop */
+        @media (min-width: 768px) {
+            #controls-bottom { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 3D WebGL Canvas -->
+        <canvas id="canvas-3d"></canvas>
+
+        <!-- UI Interactive Overlay -->
+        <div id="ui-layer">
+            <!-- Top HUD Bar -->
+            <div id="hud-top" class="interactive">
+                <div class="hud-badge room" id="hud-room">Room 1/18</div>
+                <div class="hud-badge score" id="hud-score">⭐ 0</div>
+                <button class="btn-icon" id="btn-prog-toggle">📋</button>
+                <button class="btn-icon" id="btn-audio">🔊</button>
+            </div>
+
+            <!-- Progress Drawer -->
+            <div id="progress-drawer" class="interactive">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:13px;">Room Progress (<span id="prog-count">0/18</span>)</strong>
+                    <button class="btn-icon" style="width:24px;height:24px;font-size:12px;" id="btn-prog-close">✖</button>
+                </div>
+                <div class="progress-grid" id="progress-grid"></div>
+            </div>
+
+            <!-- Toast Alert -->
+            <div id="feedback-toast"></div>
+
+            <!-- Question and Answer Panel -->
+            <div id="quest-panel" class="interactive">
+                <div class="quest-header">
+                    <span>Arrange the words:</span>
+                    <span id="player-greeting" style="color:#1976D2;"></span>
+                </div>
+
+                <!-- Answer drop target area -->
+                <div id="answer-zone"></div>
+
+                <!-- Word Selection Pool -->
+                <div id="word-pool"></div>
+
+                <!-- Hint Speech Bubble -->
+                <div id="hint-bubble"></div>
+
+                <!-- Action buttons -->
+                <div class="action-row">
+                    <button class="btn-action btn-hint" id="btn-hint">💡 Hint</button>
+                    <button class="btn-action btn-clear" id="btn-clear">🔄 Clear</button>
+                    <button class="btn-action btn-submit" id="btn-submit">✅ Submit</button>
+                </div>
+            </div>
+
+            <!-- Mobile Touch D-Pad & Jump Controls -->
+            <div id="controls-bottom">
+                <div id="dpad" class="interactive">
+                    <div class="dpad-btn" id="dpad-up">▲</div>
+                    <div class="dpad-btn" id="dpad-down">▼</div>
+                    <div class="dpad-btn" id="dpad-left">◄</div>
+                    <div class="dpad-btn" id="dpad-right">►</div>
+                </div>
+                <button class="btn-jump interactive" id="btn-jump">JUMP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- START SCREEN MODAL -->
+    <div id="modal-start" class="modal">
+        <div class="modal-card">
+            <div class="modal-title">ANIMAL HOUSE OBBY</div>
+            <div class="modal-subtitle">PREPOSITION QUEST</div>
+            <p style="font-size: 13px; color: #666;">Explore 18 rooms, find animals, and build prepositions sentences!</p>
+            
+            <div class="input-group">
+                <label for="player-name-input">Enter Your Name:</label>
+                <input type="text" id="player-name-input" placeholder="e.g. Aiman" maxlength="15">
+            </div>
+
+            <div style="background:#E3F2FD; padding:8px; border-radius:10px; font-size:12px; color:#0D47A1; text-align:left;">
+                🎮 <strong>Controls:</strong><br>
+                • Mobile: Use D-Pad to move & JUMP button.<br>
+                • PC: WASD/Arrows to move, Space to jump.<br>
+                • Tap word tiles to build correct sentences.
+            </div>
+
+            <button class="btn-large" id="btn-start-game">START ADVENTURE 🚀</button>
+        </div>
+    </div>
+
+    <!-- FINISH SCREEN MODAL -->
+    <div id="modal-finish" class="modal" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-title">🎉 CONGRATULATIONS!</div>
+            <div class="modal-subtitle" id="finish-player-name">Aiman</div>
+            <p style="font-size:13px;">You completed Animal House Obby!</p>
+
+            <div class="star-rating" id="finish-stars">⭐⭐⭐</div>
+
+            <div style="background:#f5f5f5; padding:10px; border-radius:12px; font-size:13px;">
+                <div>Total Score: <strong id="finish-score" style="color:#2E7D32;">180</strong> / 180</div>
+                <div>Rooms Completed: <strong>18/18</strong></div>
+                <div>Hints Used: <strong id="finish-hints">0</strong></div>
+            </div>
+
+            <div class="review-list" id="review-list"></div>
+
+            <button class="btn-large" id="btn-restart">PLAY AGAIN 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- GAME DATA & QUESTIONS --- */
+        const QUESTIONS = [
+            { id: 1, scrambled: ["box", "the", "on", "cat", "the", "is"], answer: "The cat is on the box.", animal: "cat", place: "box", prep: "ON" },
+            { id: 2, scrambled: ["rat", "the", "in", "the", "box", "is"], answer: "The rat is in the box.", animal: "rat", place: "box", prep: "IN" },
+            { id: 3, scrambled: ["under", "chair", "the", "dog", "the", "is"], answer: "The dog is under the chair.", animal: "dog", place: "chair", prep: "UNDER" },
+            { id: 4, scrambled: ["tree", "the", "on", "frog", "the", "is"], answer: "The frog is on the tree.", animal: "frog", place: "tree", prep: "ON" },
+            { id: 5, scrambled: ["hat", "the", "in", "spider", "the", "is"], answer: "The spider is in the hat.", animal: "spider", place: "hat", prep: "IN" },
+            { id: 6, scrambled: ["pencil case", "the", "under", "lizard", "the", "is"], answer: "The lizard is under the pencil case.", animal: "lizard", place: "pencil case", prep: "UNDER" },
+            { id: 7, scrambled: ["book", "the", "on", "rat", "the", "is"], answer: "The rat is on the book.", animal: "rat", place: "book", prep: "ON" },
+            { id: 8, scrambled: ["chair", "the", "in", "cat", "the", "is"], answer: "The cat is in the chair.", animal: "cat", place: "chair", prep: "IN" },
+            { id: 9, scrambled: ["box", "the", "under", "frog", "the", "is"], answer: "The frog is under the box.", animal: "frog", place: "box", prep: "UNDER" },
+            { id: 10, scrambled: ["hat", "the", "on", "dog", "the", "is"], answer: "The dog is on the hat.", animal: "dog", place: "hat", prep: "ON" },
+            { id: 11, scrambled: ["tree", "the", "under", "spider", "the", "is"], answer: "The spider is under the tree.", animal: "spider", place: "tree", prep: "UNDER" },
+            { id: 12, scrambled: ["pencil case", "the", "in", "lizard", "the", "is"], answer: "The lizard is in the pencil case.", animal: "lizard", place: "pencil case", prep: "IN" },
+            { id: 13, scrambled: ["box", "the", "on", "spider", "the", "is"], answer: "The spider is on the box.", animal: "spider", place: "box", prep: "ON" },
+            { id: 14, scrambled: ["book", "the", "under", "cat", "the", "is"], answer: "The cat is under the book.", animal: "cat", place: "book", prep: "UNDER" },
+            { id: 15, scrambled: ["chair", "the", "on", "frog", "the", "is"], answer: "The frog is on the chair.", animal: "frog", place: "chair", prep: "ON" },
+            { id: 16, scrambled: ["hat", "the", "under", "rat", "the", "is"], answer: "The rat is under the hat.", animal: "rat", place: "hat", prep: "UNDER" },
+            { id: 17, scrambled: ["tree", "the", "in", "dog", "the", "is"], answer: "The dog is in the tree.", animal: "dog", place: "tree", prep: "IN" },
+            { id: 18, scrambled: ["book", "the", "in", "lizard", "the", "is"], answer: "The lizard is in the book.", animal: "lizard", place: "book", prep: "IN" }
+        ];
+
+        /* --- STATE VARIABLES --- */
+        let playerName = "";
+        let currentRoomIndex = 0;
+        let score = 0;
+        let hintsUsed = 0;
+        let audioMuted = false;
+        let roomStates = Array(18).fill().map(() => ({ completed: false, attempts: 0 }));
+        let selectedTiles = [];
+
+        /* --- AUDIO SYNTHESIZER --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration) {
+            if (audioMuted) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playSound(type) {
+            if (type === 'pop') playTone(400, 'sine', 0.1);
+            if (type === 'correct') {
+                playTone(523.25, 'triangle', 0.15);
+                setTimeout(() => playTone(659.25, 'triangle', 0.15), 100);
+                setTimeout(() => playTone(783.99, 'triangle', 0.25), 200);
+            }
+            if (type === 'wrong') playTone(180, 'sawtooth', 0.25);
+            if (type === 'jump') playTone(300, 'sine', 0.12);
+        }
+
+        /* --- THREE.JS 3D WORLD SETUP --- */
+        let scene, camera, renderer, playerMesh, animalMesh, placeMesh, doorMesh;
+        let keys = { up: false, down: false, left: false, right: false, jump: false };
+        let playerVelY = 0;
+        let isGrounded = true;
+
+        function init3D() {
+            const canvas = document.getElementById('canvas-3d');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            scene.fog = new THREE.Fog(0x87CEEB, 15, 30);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Create Player Avatar (Blocky Roblox style)
+            const playerGroup = new THREE.Group();
+            
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.4);
+            const torsoMat = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
+            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            torso.position.y = 0.9;
+            torso.castShadow = true;
+            playerGroup.add(torso);
+
+            // Head
+            const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            const headMat = new THREE.MeshLambertMaterial({ color: 0xFFC107 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.7;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.35, 0.8, 0.35);
+            const legMat = new THREE.MeshLambertMaterial({ color: 0x1976D2 });
+            const leftLeg = new THREE.Mesh(legGeo, legMat);
+            leftLeg.position.set(-0.2, 0.4, 0);
+            leftLeg.castShadow = true;
+            playerGroup.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, legMat);
+            rightLeg.position.set(0.2, 0.4, 0);
+            rightLeg.castShadow = true;
+            playerGroup.add(rightLeg);
+
+            playerMesh = playerGroup;
+            scene.add(playerMesh);
+
+            buildRoomEnvironment();
+            animate();
+        }
+
+        /* Build Dynamic 3D Room Environment */
+        function buildRoomEnvironment() {
+            // Remove previous room meshes
+            while(scene.children.length > 2) { // Keep lights
+                scene.remove(scene.children[scene.children.length - 1]);
+            }
+
+            const roomData = QUESTIONS[currentRoomIndex];
+
+            // Floor
+            const floorGeo = new THREE.BoxGeometry(10, 0.2, 10);
+            const floorMat = new THREE.MeshLambertMaterial({ color: 0x81C784 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.y = -0.1;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Walls (Back & Side Walls)
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xFFE082 });
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 0.2), wallMat);
+            backWall.position.set(0, 2, -5);
+            scene.add(backWall);
+
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 10), wallMat);
+            leftWall.position.set(-5, 2, 0);
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 10), wallMat);
+            rightWall.position.set(5, 2, 0);
+            scene.add(rightWall);
+
+            // Exit Door / Portal
+            const doorGeo = new THREE.BoxGeometry(1.6, 2.8, 0.2);
+            const doorMat = new THREE.MeshLambertMaterial({ color: roomStates[currentRoomIndex].completed ? 0x4CAF50 : 0xD32F2F });
+            doorMesh = new THREE.Mesh(doorGeo, doorMat);
+            doorMesh.position.set(0, 1.4, -4.8);
+            scene.add(doorMesh);
+
+            // Reset player position
+            playerMesh.position.set(0, 0, 3);
+
+            // Build Animal & Place 3D Props based on current sentence
+            buildProps3D(roomData.animal, roomData.place, roomData.prep);
+        }
+
+        function buildProps3D(animal, place, prep) {
+            const propGroup = new THREE.Group();
+
+            // Object Mesh
+            let objMat = new THREE.MeshLambertMaterial({ color: 0x8D6E63 });
+            let objMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.5), objMat);
+
+            if (place === 'tree') {
+                objMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2), objMat);
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 8), new THREE.MeshLambertMaterial({ color: 0x2E7D32 }));
+                leaves.position.y = 1.5;
+                objMesh.add(leaves);
+            } else if (place === 'chair') {
+                objMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 1.2), new THREE.MeshLambertMaterial({ color: 0xA1887F }));
+            } else if (place === 'hat') {
+                objMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.6), new THREE.MeshLambertMaterial({ color: 0x212121 }));
+            } else if (place === 'book') {
+                objMesh = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 1.0), new THREE.MeshLambertMaterial({ color: 0xE53935 }));
+            } else if (place === 'pencil case') {
+                objMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.4, 0.7), new THREE.MeshLambertMaterial({ color: 0x8E24AA }));
+            }
+
+            objMesh.position.set(0, 0.6, -1);
+            propGroup.add(objMesh);
+
+            // Animal Mesh (Cute Blocky)
+            const animalMat = new THREE.MeshLambertMaterial({ color: 0xFFB74D });
+            const animalMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), animalMat);
+
+            // Position animal based on preposition
+            if (prep === 'ON') {
+                animalMesh.position.set(0, 1.4, -1);
+            } else if (prep === 'IN') {
+                animalMesh.position.set(0, 0.6, -1);
+                objMesh.material.transparent = true;
+                objMesh.material.opacity = 0.7; // Make container semi-transparent
+            } else if (prep === 'UNDER') {
+                animalMesh.position.set(0, 0.2, -1);
+                objMesh.position.y = 0.8;
+            }
+
+            propGroup.add(animalMesh);
+            scene.add(propGroup);
+        }
+
+        /* 3D Game Loop & Physics */
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Player Movement Logic
+            const speed = 0.12;
+            if (keys.up && playerMesh.position.z > -4) playerMesh.position.z -= speed;
+            if (keys.down && playerMesh.position.z < 4) playerMesh.position.z += speed;
+            if (keys.left && playerMesh.position.x > -4) playerMesh.position.x -= speed;
+            if (keys.right && playerMesh.position.x < 4) playerMesh.position.x += speed;
+
+            // Jumping Gravity Logic
+            if (keys.jump && isGrounded) {
+                playerVelY = 0.18;
+                isGrounded = false;
+                playSound('jump');
+            }
+
+            if (!isGrounded) {
+                playerMesh.position.y += playerVelY;
+                playerVelY -= 0.01; // Gravity
+                if (playerMesh.position.y <= 0) {
+                    playerMesh.position.y = 0;
+                    isGrounded = true;
+                }
+            }
+
+            // Smooth Camera Follow
+            camera.position.x = playerMesh.position.x;
+            camera.position.y = playerMesh.position.y + 3.5;
+            camera.position.z = playerMesh.position.z + 5.5;
+            camera.lookAt(playerMesh.position.x, playerMesh.position.y + 1, playerMesh.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        /* --- INTERACTION & GAMEPLAY LOGIC --- */
+        function loadRoom(index) {
+            currentRoomIndex = index;
+            selectedTiles = [];
+            document.getElementById('hint-bubble').style.display = 'none';
+
+            // Update HUD
+            document.getElementById('hud-room').innerText = `Room ${index + 1}/18`;
+            document.getElementById('hud-score').innerText = `⭐ ${score}`;
+
+            // Load Tiles
+            const q = QUESTIONS[index];
+            const shuffled = [...q.scrambled].sort(() => Math.random() - 0.5);
+
+            const poolEl = document.getElementById('word-pool');
+            poolEl.innerHTML = '';
+            shuffled.forEach((word, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'tile';
+                btn.innerText = word;
+                btn.onclick = () => selectTile(word, btn);
+                poolEl.appendChild(btn);
+            });
+
+            renderAnswerZone();
+            renderProgressGrid();
+            buildRoomEnvironment();
+        }
+
+        function selectTile(word, element) {
+            playSound('pop');
+            selectedTiles.push({ word, element });
+            element.style.visibility = 'hidden';
+            renderAnswerZone();
+        }
+
+        function unselectTile(index) {
+            playSound('pop');
+            const item = selectedTiles[index];
+            item.element.style.visibility = 'visible';
+            selectedTiles.splice(index, 1);
+            renderAnswerZone();
+        }
+
+        function renderAnswerZone() {
+            const zone = document.getElementById('answer-zone');
+            zone.innerHTML = '';
+            selectedTiles.forEach((item, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'tile';
+                btn.innerText = item.word;
+                btn.onclick = () => unselectTile(idx);
+                zone.appendChild(btn);
+            });
+        }
+
+        function clearAnswer() {
+            playSound('pop');
+            selectedTiles.forEach(item => item.element.style.visibility = 'visible');
+            selectedTiles = [];
+            renderAnswerZone();
+        }
+
+        function showHint() {
+            hintsUsed++;
+            playSound('pop');
+            const q = QUESTIONS[currentRoomIndex];
+            const bubble = document.getElementById('hint-bubble');
+
+            let prepText = "";
+            if (q.prep === "ON") prepText = "ON: The animal is on top of the object.";
+            if (q.prep === "IN") prepText = "IN: The animal is inside the object.";
+            if (q.prep === "UNDER") prepText = "UNDER: The animal is below the object.";
+
+            bubble.innerText = `💡 ${prepText} Look carefully!`;
+            bubble.style.display = 'block';
+
+            // Highlight preposition tile in word pool
+            const tiles = document.querySelectorAll('#word-pool .tile');
+            tiles.forEach(t => {
+                if (t.innerText.toLowerCase() === q.prep.toLowerCase()) {
+                    t.classList.add('highlight');
+                }
+            });
+        }
+
+        function submitAnswer() {
+            const userSentence = selectedTiles.map(t => t.word).join(" ").trim();
+            const q = QUESTIONS[currentRoomIndex];
+            const state = roomStates[currentRoomIndex];
+
+            // Case-insensitive & formatting validation
+            const formattedUser = userSentence.toLowerCase().replace(/\s+/g, ' ');
+            const formattedTarget = q.answer.toLowerCase().replace('.', '').trim();
+
+            if (formattedUser === formattedTarget) {
+                // Correct Answer!
+                playSound('correct');
+                showToast("Amazing! Correct answer!", "success");
+
+                if (!state.completed) {
+                    state.completed = true;
+                    // Scoring: First try = 10 pts, Retry = 5 pts
+                    const points = state.attempts === 0 ? 10 : 5;
+                    score += points;
+                    document.getElementById('hud-score').innerText = `⭐ ${score}`;
+                }
+
+                // Unlock door visual
+                if (doorMesh) doorMesh.material.color.setHex(0x4CAF50);
+
+                renderProgressGrid();
+
+                // Auto advance after 1.5 seconds
+                setTimeout(() => {
+                    if (currentRoomIndex < 18 - 1) {
+                        loadRoom(currentRoomIndex + 1);
+                    } else {
+                        showFinishScreen();
+                    }
+                }, 1500);
+
+            } else {
+                // Incorrect
+                state.attempts++;
+                playSound('wrong');
+                showToast("Not quite! Try again!", "error");
+            }
+        }
+
+        function showToast(text, type) {
+            const toast = document.getElementById('feedback-toast');
+            toast.innerText = text;
+            toast.className = type;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 1400);
+        }
+
+        /* Progress Panel Grid Rendering */
+        function renderProgressGrid() {
+            const grid = document.getElementById('progress-grid');
+            grid.innerHTML = '';
+            let completedCount = 0;
+
+            QUESTIONS.forEach((q, idx) => {
+                const st = roomStates[idx];
+                if (st.completed) completedCount++;
+
+                const node = document.createElement('div');
+                node.className = `prog-node ${st.completed ? 'green' : 'red'} ${idx === currentRoomIndex ? 'active' : ''}`;
+                node.innerText = `${idx + 1} ${st.completed ? '✓' : '✗'}`;
+                node.onclick = () => {
+                    loadRoom(idx);
+                    document.getElementById('progress-drawer').classList.remove('open');
+                };
+                grid.appendChild(node);
+            });
+
+            document.getElementById('prog-count').innerText = `${completedCount}/18`;
+        }
+
+        /* Finish Screen */
+        function showFinishScreen() {
+            document.getElementById('modal-finish').style.display = 'flex';
+            document.getElementById('finish-player-name').innerText = playerName;
+            document.getElementById('finish-score').innerText = score;
+            document.getElementById('finish-hints').innerText = hintsUsed;
+
+            // Star Rating
+            let stars = "⭐☆☆";
+            if (score >= 120) stars = "⭐⭐☆";
+            if (score >= 160) stars = "⭐⭐⭐";
+            document.getElementById('finish-stars').innerText = stars;
+
+            // Answer Review List
+            const listEl = document.getElementById('review-list');
+            listEl.innerHTML = '<strong>Answer Review:</strong>';
+            QUESTIONS.forEach((q, i) => {
+                const item = document.createElement('div');
+                item.innerText = `${i+1}. ${q.answer}`;
+                listEl.appendChild(item);
+            });
+        }
+
+        /* --- CONTROLS & EVENT LISTENERS --- */
+        function setupControls() {
+            // Mobile D-Pad Touch Listeners
+            const bindDPad = (id, key) => {
+                const el = document.getElementById(id);
+                const start = (e) => { e.preventDefault(); keys[key] = true; el.classList.add('active'); };
+                const end = (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('active'); };
+                el.addEventListener('touchstart', start);
+                el.addEventListener('touchend', end);
+                el.addEventListener('mousedown', start);
+                el.addEventListener('mouseup', end);
+            };
+
+            bindDPad('dpad-up', 'up');
+            bindDPad('dpad-down', 'down');
+            bindDPad('dpad-left', 'left');
+            bindDPad('dpad-right', 'right');
+
+            // Jump Button
+            const jumpBtn = document.getElementById('btn-jump');
+            const doJump = (e) => { e.preventDefault(); keys.jump = true; setTimeout(() => keys.jump = false, 100); };
+            jumpBtn.addEventListener('touchstart', doJump);
+            jumpBtn.addEventListener('mousedown', doJump);
+
+            // PC Keyboard Listeners
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'w' || e.key === 'ArrowUp') keys.up = true;
+                if (e.key === 's' || e.key === 'ArrowDown') keys.down = true;
+                if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
+                if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
+                if (e.key === ' ') keys.jump = true;
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'w' || e.key === 'ArrowUp') keys.up = false;
+                if (e.key === 's' || e.key === 'ArrowDown') keys.down = false;
+                if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = false;
+                if (e.key === 'd' || e.key === 'ArrowRight') keys.right = false;
+                if (e.key === ' ') keys.jump = false;
+            });
+
+            // Action Buttons
+            document.getElementById('btn-clear').onclick = clearAnswer;
+            document.getElementById('btn-hint').onclick = showHint;
+            document.getElementById('btn-submit').onclick = submitAnswer;
+
+            // UI Drawer Toggle
+            document.getElementById('btn-prog-toggle').onclick = () => {
+                document.getElementById('progress-drawer').classList.toggle('open');
+            };
+            document.getElementById('btn-prog-close').onclick = () => {
+                document.getElementById('progress-drawer').classList.remove('open');
+            };
+
+            // Audio Toggle
+            document.getElementById('btn-audio').onclick = () => {
+                audioMuted = !audioMuted;
+                document.getElementById('btn-audio').innerText = audioMuted ? '🔇' : '🔊';
+            };
+
+            // Start Game Button
+            document.getElementById('btn-start-game').onclick = () => {
+                const input = document.getElementById('player-name-input').value.trim();
+                if (!input) {
+                    alert("Please enter your name to start!");
+                    return;
+                }
+                playerName = input;
+                document.getElementById('player-greeting').innerText = `Hi, ${playerName}!`;
+                document.getElementById('modal-start').style.display = 'none';
+                
+                // Audio context resume on user gesture
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                loadRoom(0);
+            };
+
+            // Restart Button
+            document.getElementById('btn-restart').onclick = () => {
+                score = 0;
+                currentRoomIndex = 0;
+                hintsUsed = 0;
+                roomStates = Array(18).fill().map(() => ({ completed: false, attempts: 0 }));
+                document.getElementById('modal-finish').style.display = 'none';
+                loadRoom(0);
+            };
+
+            // Handle Window Resize
+            window.addEventListener('resize', () => {
+                if (camera && renderer) {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+            });
+        }
+
+        /* --- INITIALIZATION --- */
+        window.onload = () => {
+            init3D();
+            setupControls();
+        };
+    </script>
+</body>
+</html>
